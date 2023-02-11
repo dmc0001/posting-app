@@ -1,29 +1,41 @@
 package com.anyandroid.postingapp.ui.main
 
 
+import android.annotation.SuppressLint
+import android.content.ContentValues.TAG
+import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-
 import com.anyandroid.postingapp.data.PostsClient.Companion.getINSTANCE
-
 import com.anyandroid.postingapp.pojo.PostModel
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.schedulers.Schedulers
 
-class PostViewModel: ViewModel(){
+class PostViewModel : ViewModel() {
     val postsMutableLiveData = MutableLiveData<List<PostModel>>()
-    fun getPosts(){
-            getINSTANCE().getPosts().enqueue(object : retrofit2.Callback<List<PostModel>> {
-            override fun onResponse(
-                call: retrofit2.Call<List<PostModel>>,
-                response: retrofit2.Response<List<PostModel>>
-            ) {
-                postsMutableLiveData.postValue(response.body())
-            }
+    private val compositeDisposable = CompositeDisposable()
 
-            override fun onFailure(call: retrofit2.Call<List<PostModel>>, t: Throwable) {
-                postsMutableLiveData.postValue(null)
-            }
+    @SuppressLint("CheckResult")
+    fun getPosts() {
+        val single = getINSTANCE().getPosts()
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+        compositeDisposable.add(
+            single.subscribe(
+                // set value to live data
+                { t ->
+                    postsMutableLiveData.postValue(t)
+                },
+                // onError
+                { e -> Log.d(TAG, "dmc69 error: $e") })
+        )
 
-        })
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        compositeDisposable.clear()
     }
 
 }
